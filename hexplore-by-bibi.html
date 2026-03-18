@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Hexplore by Bibi</title>
+<meta name="description" content="Track any Ethereum wallet — transactions, tokens, portfolio value."/>
+<meta property="og:title" content="Hexplore by Bibi"/>
+<meta property="og:description" content="Ethereum wallet explorer with token transfers, portfolio value and more."/>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 56'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23627eea'/%3E%3Cstop offset='1' stop-color='%235b8ff9'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='56' height='56' rx='12' fill='url(%23g)'/%3E%3Ctext x='50%25' y='56%25' text-anchor='middle' dominant-baseline='middle' font-size='28' fill='white'%3E%E2%AC%A1%3C/text%3E%3C/svg%3E"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<!-- QR Scanner library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+[data-theme="dark"]{
+  --bg:#080b12;--surf:#0f1320;--surf2:#141927;
+  --bdr:#1a2035;--bdr2:#222840;
+  --txt:#dde4f5;--txt2:#6b7a99;--txt3:#323d55;
+  --blue:#5b8ff9;--blue-bg:rgba(91,143,249,.1);--blue-br:rgba(91,143,249,.2);
+  --green:#3ecf8e;--green-bg:rgba(62,207,142,.09);
+  --orange:#f5a623;--orng-bg:rgba(245,166,35,.09);
+  --red:#f25f5c;--red-bg:rgba(242,95,92,.09);
+  --purple:#9b7ef8;--purple-bg:rgba(155,126,248,.1);
+  --sh:0 2px 8px rgba(0,0,0,.5);--sh2:0 12px 40px rgba(0,0,0,.6);
+  --nav-bg:rgba(8,11,18,.96);
+}
+[data-theme="light"]{
+  --bg:#f2f5fc;--surf:#fff;--surf2:#f7f9fe;
+  --bdr:#e3e8f4;--bdr2:#ccd4ea;
+  --txt:#0d1526;--txt2:#5a6b8a;--txt3:#97a3bc;
+  --blue:#2563eb;--blue-bg:rgba(37,99,235,.07);--blue-br:rgba(37,99,235,.2);
+  --green:#059669;--green-bg:rgba(5,150,105,.08);
+  --orange:#d97706;--orng-bg:rgba(217,119,6,.08);
+  --red:#dc2626;--red-bg:rgba(220,38,38,.08);
+  --purple:#7c3aed;--purple-bg:rgba(124,58,237,.07);
+  --sh:0 2px 8px rgba(0,0,0,.06);--sh2:0 12px 40px rgba(0,0,0,.1);
+  --nav-bg:rgba(242,245,252,.97);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:14px;line-height:1.5;transition:background .2s,color .2s;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:3px;}
+
+/* NAV */
+nav{position:sticky;top:0;z-index:100;background:var(--nav-bg);backdrop-filter:blur(20px);border-bottom:1px solid var(--bdr);height:60px;}
+.nav-in{max-width:1000px;margin:0 auto;padding:0 20px;height:100%;display:flex;align-items:center;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-mark{width:34px;height:34px;background:linear-gradient(135deg,#627eea,#5b8ff9);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.logo-wrap{line-height:1.1;}
+.logo-name{font-weight:800;font-size:17px;letter-spacing:-.5px;}
+.logo-byline{font-size:10px;color:var(--txt3);font-weight:600;}
+.nav-r{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.eth-badge{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;background:rgba(98,126,234,.12);border:1px solid rgba(98,126,234,.25);font-size:12px;font-weight:700;color:#627eea;}
+.btn-icon{width:34px;height:34px;border:1px solid var(--bdr2);border-radius:8px;background:var(--surf);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;transition:border-color .15s;flex-shrink:0;}
+.btn-icon:hover{border-color:var(--blue);}
+
+/* HERO */
+.hero{max-width:1000px;margin:0 auto;padding:48px 20px 0;}
+.hero-title{font-size:36px;font-weight:800;letter-spacing:-.8px;line-height:1.2;margin-bottom:10px;}
+.hero-title span{background:linear-gradient(135deg,#627eea,#5b8ff9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero-sub{font-size:15px;color:var(--txt2);margin-bottom:24px;font-weight:500;}
+
+/* SEARCH */
+.search-wrap{position:relative;margin-bottom:10px;}
+.search-box{background:var(--surf);border:1px solid var(--bdr2);border-radius:14px;padding:6px 6px 6px 20px;display:flex;align-items:center;gap:8px;box-shadow:var(--sh);transition:border-color .2s,box-shadow .2s;}
+.search-box:focus-within{border-color:#627eea;box-shadow:0 0 0 3px rgba(98,126,234,.12);}
+.s-inp{flex:1;background:transparent;border:none;outline:none;font-family:'Sora',sans-serif;font-size:14px;color:var(--txt);padding:10px 0;}
+.s-inp::placeholder{color:var(--txt3);}
+.btn-qr{background:transparent;border:1px solid var(--bdr2);color:var(--txt2);padding:8px 10px;border-radius:8px;cursor:pointer;font-size:16px;transition:all .15s;flex-shrink:0;display:flex;align-items:center;}
+.btn-qr:hover{border-color:var(--blue);color:var(--blue);}
+.s-btn{background:linear-gradient(135deg,#627eea,#5b8ff9);color:#fff;border:none;padding:11px 26px;border-radius:9px;font-family:'Sora',sans-serif;font-weight:700;font-size:13px;cursor:pointer;transition:opacity .15s;white-space:nowrap;flex-shrink:0;}
+.s-btn:hover{opacity:.85;}
+.s-btn:disabled{opacity:.45;cursor:not-allowed;}
+
+/* SEARCH HISTORY */
+.history-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:32px;min-height:24px;}
+.hist-pill{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;color:var(--txt2);background:var(--surf);border:1px solid var(--bdr2);cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:all .15s;}
+.hist-pill:hover{color:var(--blue);border-color:var(--blue-br);}
+.hist-x{font-size:11px;color:var(--txt3);margin-left:2px;font-family:'Sora',sans-serif;}
+.hist-x:hover{color:var(--red);}
+.hist-label{font-size:10px;font-weight:600;color:var(--txt3);letter-spacing:.5px;text-transform:uppercase;margin-right:2px;font-family:'Sora',sans-serif;}
+
+/* QR MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:400;align-items:center;justify-content:center;}
+.modal-bg.show{display:flex;}
+.modal{background:var(--surf);border:1px solid var(--bdr2);border-radius:16px;padding:24px;max-width:380px;width:90%;box-shadow:var(--sh2);}
+.modal-title{font-weight:800;font-size:16px;margin-bottom:6px;}
+.modal-sub{font-size:12px;color:var(--txt2);margin-bottom:16px;line-height:1.6;}
+#qr-reader{border-radius:10px;overflow:hidden;background:var(--surf2);border:1px solid var(--bdr);}
+.modal-close{margin-top:14px;width:100%;padding:10px;border-radius:9px;background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2);font-family:'Sora',sans-serif;font-weight:600;font-size:13px;cursor:pointer;transition:all .15s;}
+.modal-close:hover{color:var(--txt);border-color:var(--bdr2);}
+
+/* WRAP */
+.wrap{max-width:1000px;margin:0 auto;padding:24px 20px 60px;}
+
+/* PORTFOLIO / WALLET CARD */
+.wallet-card{background:var(--surf);border:1px solid var(--bdr);border-radius:14px;padding:22px 24px;margin-bottom:18px;box-shadow:var(--sh);}
+.wc-top{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+.wc-av{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;color:#fff;flex-shrink:0;background:linear-gradient(135deg,#627eea,#5b8ff9);}
+.wc-addr{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--txt);word-break:break-all;line-height:1.6;}
+.wc-sub{font-size:11px;color:var(--txt2);margin-top:3px;}
+.wc-copy{font-size:11px;color:var(--blue);cursor:pointer;margin-left:6px;}
+.wc-copy:hover{text-decoration:underline;}
+
+/* PORTFOLIO VALUE */
+.portfolio-val{background:linear-gradient(135deg,rgba(98,126,234,.12),rgba(91,143,249,.06));border:1px solid rgba(98,126,234,.2);border-radius:10px;padding:16px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.pv-label{font-size:11px;font-weight:600;color:var(--txt3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px;}
+.pv-amount{font-weight:800;font-size:26px;letter-spacing:-.8px;color:#627eea;}
+.pv-eth{font-size:13px;color:var(--txt2);margin-top:2px;}
+.pv-price{text-align:right;}
+.pv-price-lbl{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;}
+.pv-price-val{font-size:14px;font-weight:700;color:var(--txt);}
+.pv-change{font-size:11px;margin-top:2px;}
+.pv-up{color:var(--green);} .pv-down{color:var(--red);}
+
+.wc-stats{display:flex;gap:0;flex-wrap:wrap;}
+.wc-stat{padding:0 22px;border-right:1px solid var(--bdr);}
+.wc-stat:first-child{padding-left:0;}
+.wc-stat:last-child{border-right:none;}
+.wc-lbl{font-size:10px;font-weight:600;color:var(--txt3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px;}
+.wc-val{font-weight:800;font-size:20px;letter-spacing:-.5px;}
+.c-eth{color:#627eea;} .cg{color:var(--green);}
+
+/* TABS */
+.tabs{display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--bdr);padding-bottom:0;}
+.tab{padding:9px 18px;font-weight:600;font-size:13px;color:var(--txt2);cursor:pointer;border:none;background:transparent;font-family:'Sora',sans-serif;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;}
+.tab:hover{color:var(--txt);}
+.tab.on{color:#627eea;border-bottom-color:#627eea;}
+.tab-count{font-size:10px;background:var(--surf2);border-radius:10px;padding:1px 6px;margin-left:4px;color:var(--txt3);}
+.tab.on .tab-count{background:rgba(98,126,234,.15);color:#627eea;}
+
+/* CARD */
+.card{background:var(--surf);border:1px solid var(--bdr);border-radius:12px;overflow:hidden;box-shadow:var(--sh);}
+.card-hd{display:flex;justify-content:space-between;align-items:center;padding:13px 18px;border-bottom:1px solid var(--bdr);}
+.card-ttl{font-weight:700;font-size:13px;}
+.btn-rf{background:transparent;border:1px solid var(--bdr2);color:var(--txt2);font-size:11px;font-weight:600;font-family:'Sora',sans-serif;padding:5px 12px;border-radius:6px;cursor:pointer;transition:all .15s;}
+.btn-rf:hover{border-color:var(--blue);color:var(--blue);}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th{font-size:10px;font-weight:700;color:var(--txt3);letter-spacing:.8px;text-transform:uppercase;padding:9px 16px;background:var(--surf2);border-bottom:1px solid var(--bdr);text-align:left;}
+.tbl td{padding:12px 16px;font-size:12px;color:var(--txt2);border-bottom:1px solid var(--bdr);vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:var(--surf2);cursor:pointer;}
+.mono{font-family:'IBM Plex Mono',monospace;font-size:11px;}
+.hl{color:var(--blue);}.hl:hover{text-decoration:underline;cursor:pointer;}
+.ar{display:flex;align-items:center;gap:5px;}
+.av{width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0;}
+.at{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--txt);}
+.arw{color:var(--txt3);margin:0 2px;}
+.val-in{color:var(--green);font-weight:700;}
+.val-out{color:var(--red);font-weight:700;}
+.val-self{color:var(--orange);font-weight:700;}
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;font-family:'Sora',sans-serif;white-space:nowrap;}
+.b-in{background:var(--green-bg);color:var(--green);}
+.b-out{background:var(--red-bg);color:var(--red);}
+.b-self{background:var(--orng-bg);color:var(--orange);}
+.b-ok{background:var(--green-bg);color:var(--green);}
+.b-fail{background:var(--red-bg);color:var(--red);}
+.b-int{background:var(--purple-bg);color:var(--purple);}
+
+/* TOKEN ICON */
+.tok-icon{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--blue-bg),var(--blue-br));border:1px solid var(--blue-br);display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--blue);flex-shrink:0;}
+
+/* LOADING / EMPTY */
+.loading{text-align:center;padding:40px 20px;color:var(--txt3);font-size:13px;}
+.loader{display:inline-block;width:22px;height:22px;border:2px solid var(--bdr2);border-top-color:#627eea;border-radius:50%;animation:spin .7s linear infinite;margin-bottom:10px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:40px 20px;color:var(--txt3);font-size:13px;line-height:2;}
+.view-more{padding:11px 16px;font-size:11px;color:var(--txt3);border-top:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;}
+.view-more a{color:var(--blue);font-weight:600;text-decoration:none;}
+.view-more a:hover{text-decoration:underline;}
+
+/* DETAIL PANEL */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:200;}
+.ov.show{display:block;}
+.panel{position:fixed;top:0;right:0;width:460px;height:100vh;background:var(--surf);border-left:1px solid var(--bdr2);z-index:201;overflow-y:auto;transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);box-shadow:var(--sh2);}
+.panel.open{transform:translateX(0);}
+.ph{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--bdr);position:sticky;top:0;background:var(--surf);z-index:1;}
+.ph-ttl{font-weight:700;font-size:14px;}
+.btn-x{width:28px;height:28px;border-radius:6px;border:1px solid var(--bdr2);background:transparent;color:var(--txt2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .15s;}
+.btn-x:hover{border-color:var(--red);color:var(--red);}
+.pb{padding:20px;}
+.dr{padding:12px 0;border-bottom:1px solid var(--bdr);}
+.dr:last-child{border-bottom:none;}
+.dk{font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--txt3);margin-bottom:5px;}
+.dv{font-size:12px;color:var(--txt);word-break:break-all;line-height:1.6;}
+.dv.m{font-family:'IBM Plex Mono',monospace;font-size:11px;}
+
+/* TOAST */
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);z-index:999;background:var(--surf);border:1px solid var(--bdr2);border-radius:20px;padding:10px 22px;font-size:13px;color:var(--txt);box-shadow:var(--sh2);max-width:90vw;text-align:center;opacity:0;transition:all .3s cubic-bezier(.4,0,.2,1);}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.wallet-card,.portfolio-val,.card{animation:fadeUp .3s ease both;}
+.wallet-card{animation-delay:.05s}
+.portfolio-val{animation-delay:.1s}
+.card{animation-delay:.15s}
+@media(max-width:700px){.panel{width:100vw}.tbl th:nth-child(4),.tbl td:nth-child(4){display:none}}
+@media(max-width:500px){.hero-title{font-size:26px}.tbl th:nth-child(5),.tbl td:nth-child(5){display:none}.wc-stat{padding:8px 10px 0 0;border-right:none}}
+</style>
+</head>
+<body>
+
+<!-- QR Modal -->
+<div class="modal-bg" id="qrModal">
+  <div class="modal">
+    <div class="modal-title">📷 Scan Wallet QR Code</div>
+    <div class="modal-sub">Point your camera at a wallet QR code to auto-fill the address.</div>
+    <div id="qr-reader"></div>
+    <button class="modal-close" onclick="closeQR()">Cancel</button>
+  </div>
+</div>
+
+<nav>
+  <div class="nav-in">
+    <div class="logo">
+      <div class="logo-mark">⬡</div>
+      <div class="logo-wrap">
+        <div class="logo-name">Hexplore</div>
+        <div class="logo-byline">by Bibi</div>
+      </div>
+    </div>
+    <div class="nav-r">
+      <div class="eth-badge"><span style="font-size:16px">⬡</span> Ethereum</div>
+      <button class="btn-icon" id="themeBtn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+    </div>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-title">Track any wallet on<br><span>Ethereum</span></div>
+  <div class="hero-sub">Paste an address, scan a QR code, or pick from your history.</div>
+
+  <div class="search-wrap">
+    <div class="search-box">
+      <span style="color:var(--txt3);font-size:16px;flex-shrink:0">🔍</span>
+      <input class="s-inp" id="searchInput" placeholder="Paste Ethereum wallet address  (0x…)"/>
+      <button class="btn-qr" onclick="openQR()" title="Scan QR code">📷</button>
+      <button class="s-btn" id="searchBtn" onclick="doSearch()">Search</button>
+    </div>
+  </div>
+
+  <!-- Search History -->
+  <div class="history-row" id="historyRow"></div>
+</div>
+
+<div class="wrap">
+  <div id="results" style="display:none">
+
+    <!-- Wallet info -->
+    <div class="wallet-card" id="walletCard"></div>
+
+    <!-- Portfolio value -->
+    <div class="portfolio-val" id="portfolioVal"></div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab on"  onclick="switchTab('txns',this)">Transactions <span class="tab-count" id="cnt-txns">—</span></button>
+      <button class="tab"     onclick="switchTab('tokens',this)">Token Transfers <span class="tab-count" id="cnt-tokens">—</span></button>
+      <button class="tab"     onclick="switchTab('internal',this)">Internal <span class="tab-count" id="cnt-internal">—</span></button>
+      <button class="tab" id="tab-btn-ai" onclick="switchTab('ai',this)">🤖 AI Analysis <span class="tab-count" id="cnt-ai" style="background:rgba(98,126,234,.15);color:#627eea">GenLayer</span></button>
+    </div>
+
+    <!-- Transaction tab -->
+    <div id="tab-txns">
+      <div class="card">
+        <div class="card-hd"><span class="card-ttl">ETH Transactions</span><button class="btn-rf" onclick="doSearch()">↻ Refresh</button></div>
+        <div id="txBody"><div class="loading"><div class="loader"></div><br>Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- Token transfers tab -->
+    <div id="tab-tokens" style="display:none">
+      <div class="card">
+        <div class="card-hd"><span class="card-ttl">ERC-20 Token Transfers</span></div>
+        <div id="tokenBody"><div class="loading"><div class="loader"></div><br>Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- Internal transactions tab -->
+    <div id="tab-internal" style="display:none">
+      <div class="card">
+        <div class="card-hd"><span class="card-ttl">Internal Transactions</span></div>
+        <div id="internalBody"><div class="loading"><div class="loader"></div><br>Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- AI ANALYSIS TAB -->
+    <div id="tab-ai" style="display:none">
+      <div class="card">
+        <div class="card-hd">
+          <span class="card-ttl">🤖 AI Wallet Analysis</span>
+          <span style="font-size:11px;color:#627eea;font-weight:600;background:rgba(98,126,234,.1);padding:3px 10px;border-radius:20px;border:1px solid rgba(98,126,234,.2)">⬡ Powered by GenLayer</span>
+        </div>
+        <div id="aiBody">
+          <div class="empty" style="padding:32px 20px">
+            Click <strong>Analyse with GenLayer</strong> to generate an AI-powered analysis of this wallet.<br>
+            <span style="font-size:11px;color:var(--txt3)">Your Intelligent Contract fetches live data and runs it through an LLM on-chain.</span><br><br>
+            <button onclick="runGLAnalysis()" class="s-btn" style="margin-top:4px">⬡ Analyse with GenLayer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Detail Panel -->
+<div class="ov" id="ov" onclick="closePanel()"></div>
+<div class="panel" id="panel">
+  <div class="ph">
+    <span class="ph-ttl">Transaction Details</span>
+    <button class="btn-x" onclick="closePanel()">✕</button>
+  </div>
+  <div class="pb" id="panelBody"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const KEY  = '7MY5854WUM8TQIVSK9HSC5ZYB5VW356SZD';
+const API  = `https://api.etherscan.io/v2/api?chainid=1&apikey=${KEY}`;
+const CORS = u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`;
+
+// ─── GENLAYER CONFIG ─────────────────────────────────────────────────────────
+const GL_RPC      = 'https://studio.genlayer.com/api';
+const GL_CONTRACT = '0x31EDcaD65AD30f6743f21657D37028E439EA7851';
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let curAddr   = '';
+let txCache   = [];
+let tokenCache= [];
+let intCache  = [];
+let busy      = false;
+let ethPrice  = 0;
+let ethChange = 0;
+let qrScanner = null;
+
+// ─── THEME ───────────────────────────────────────────────────────────────────
+function toggleTheme(){
+  const h=document.documentElement,d=h.getAttribute('data-theme')==='dark';
+  h.setAttribute('data-theme',d?'light':'dark');
+  document.getElementById('themeBtn').textContent=d?'☀️':'🌙';
+}
+
+// ─── FETCH ────────────────────────────────────────────────────────────────────
+async function apiFetch(params){
+  const url = API+'&'+params;
+  try{
+    const r=await fetch(url,{signal:AbortSignal.timeout(12000)});
+    if(r.ok){const j=await r.json();if(j.status!==undefined)return j;}
+  }catch(e){}
+  // fallback proxy
+  const r=await fetch(CORS(url),{signal:AbortSignal.timeout(18000)});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const d=await r.json();
+  if(d.status!==undefined) return d;
+  if(d.contents) return JSON.parse(d.contents);
+  throw new Error('No response');
+}
+
+// ─── SEARCH HISTORY ───────────────────────────────────────────────────────────
+function getHistory(){ try{return JSON.parse(localStorage.getItem('hx_history')||'[]');}catch{return[];} }
+function saveHistory(addr){
+  let h=getHistory().filter(a=>a!==addr);
+  h.unshift(addr);
+  h=h.slice(0,5);
+  localStorage.setItem('hx_history',JSON.stringify(h));
+  renderHistory();
+}
+function removeHistory(addr,e){
+  e.stopPropagation();
+  const h=getHistory().filter(a=>a!==addr);
+  localStorage.setItem('hx_history',JSON.stringify(h));
+  renderHistory();
+}
+function renderHistory(){
+  const h=getHistory();
+  const row=document.getElementById('historyRow');
+  if(!h.length){row.innerHTML='';return;}
+  row.innerHTML=`<span class="hist-label">Recent:</span>`+
+    h.map(a=>`
+      <div class="hist-pill" onclick="loadFromHistory('${a}')">
+        ${sh(a,6,4)}
+        <span class="hist-x" onclick="removeHistory('${a}',event)">✕</span>
+      </div>`).join('');
+}
+function loadFromHistory(addr){
+  document.getElementById('searchInput').value=addr;
+  doSearch();
+}
+
+// ─── QR SCANNER ───────────────────────────────────────────────────────────────
+function openQR(){
+  document.getElementById('qrModal').classList.add('show');
+  qrScanner=new Html5Qrcode('qr-reader');
+  qrScanner.start(
+    {facingMode:'environment'},
+    {fps:10,qrbox:{width:240,height:240}},
+    (decoded)=>{
+      // Extract Ethereum address from QR (handles ethereum: prefix)
+      let addr=decoded.replace(/^ethereum:/i,'').split('@')[0].split('?')[0].trim();
+      if(addr.startsWith('0x')&&addr.length===42){
+        document.getElementById('searchInput').value=addr;
+        closeQR();
+        doSearch();
+      } else {
+        showToast('QR code doesn\'t contain an Ethereum address');
+      }
+    },
+    ()=>{}
+  ).catch(e=>{ showToast('Camera access denied — paste the address manually'); closeQR(); });
+}
+function closeQR(){
+  if(qrScanner){
+    qrScanner.stop().catch(()=>{});
+    qrScanner=null;
+  }
+  document.getElementById('qrModal').classList.remove('show');
+  document.getElementById('qr-reader').innerHTML='';
+}
+
+// ─── ETH PRICE ───────────────────────────────────────────────────────────────
+async function fetchEthPrice(){
+  try{
+    const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd&include_24hr_change=true',{signal:AbortSignal.timeout(8000)});
+    const d=await r.json();
+    ethPrice  = d.ethereum.usd;
+    ethChange = d.ethereum.usd_24h_change;
+  }catch{ethPrice=0;}
+}
+
+// ─── TAB SWITCH ──────────────────────────────────────────────────────────────
+function switchTab(tab,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  ['txns','tokens','internal','ai'].forEach(t=>
+    document.getElementById('tab-'+t).style.display=t===tab?'block':'none'
+  );
+}
+
+// ─── MAIN SEARCH ─────────────────────────────────────────────────────────────
+async function doSearch(){
+  if(busy) return;
+  const raw=document.getElementById('searchInput').value.trim();
+  if(!raw){showToast('Paste a wallet address first');return;}
+  if(!raw.startsWith('0x')||raw.length!==42){
+    showToast('Address must start with 0x and be 42 characters');return;
+  }
+
+  curAddr=raw.toLowerCase();
+  busy=true;
+  const btn=document.getElementById('searchBtn');
+  btn.disabled=true;btn.textContent='Searching…';
+
+  // Reset UI
+  document.getElementById('results').style.display='block';
+  document.getElementById('txBody').innerHTML='<div class="loading"><div class="loader"></div><br>Fetching transactions…</div>';
+  document.getElementById('tokenBody').innerHTML='<div class="loading"><div class="loader"></div><br>Fetching token transfers…</div>';
+  document.getElementById('internalBody').innerHTML='<div class="loading"><div class="loader"></div><br>Fetching internal transactions…</div>';
+  document.getElementById('portfolioVal').innerHTML='';
+  renderWalletCard(curAddr,null,null);
+  // Reset to first tab
+  switchTab('txns',document.querySelectorAll('.tab')[0]);
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+
+  // Fetch everything in parallel
+  try{
+    const [txRes,balRes,tokRes,intRes,_price]=await Promise.all([
+      apiFetch(`module=account&action=txlist&address=${curAddr}&startblock=0&endblock=99999999&page=1&offset=50&sort=desc`),
+      apiFetch(`module=account&action=balance&address=${curAddr}&tag=latest`),
+      apiFetch(`module=account&action=tokentx&address=${curAddr}&startblock=0&endblock=99999999&page=1&offset=50&sort=desc`),
+      apiFetch(`module=account&action=txlistinternal&address=${curAddr}&startblock=0&endblock=99999999&page=1&offset=50&sort=desc`),
+      fetchEthPrice()
+    ]);
+
+    const txs  = txRes.status==='1'  ? txRes.result||[]  : [];
+    const bal  = balRes.status==='1' ? parseFloat(balRes.result)/1e18 : 0;
+    const toks = tokRes.status==='1' ? tokRes.result||[] : [];
+    const ints = intRes.status==='1' ? intRes.result||[] : [];
+
+    txCache    = txs;
+    tokenCache = toks;
+    intCache   = ints;
+
+    // Update counts
+    document.getElementById('cnt-txns').textContent    = txs.length>=50?'50+':txs.length;
+    document.getElementById('cnt-tokens').textContent  = toks.length>=50?'50+':toks.length;
+    document.getElementById('cnt-internal').textContent= ints.length>=50?'50+':ints.length;
+
+    saveHistory(curAddr);
+    renderWalletCard(curAddr, bal, txs.length);
+    renderPortfolio(bal);
+    renderTx(txs);
+    renderTokens(toks);
+    renderInternal(ints);
+
+  }catch(e){
+    document.getElementById('txBody').innerHTML=`<div class="empty">Could not load data.<br><span style="font-size:11px;color:var(--txt3)">${e.message}</span></div>`;
+  }
+
+  busy=false;btn.disabled=false;btn.textContent='Search';
+}
+
+// ─── WALLET CARD ─────────────────────────────────────────────────────────────
+function renderWalletCard(addr,bal,txCount){
+  const initials=addr.length>=4?addr[2].toUpperCase()+addr[3].toUpperCase():'0X';
+  const balStr=bal!==null?bal.toFixed(4)+' ETH':'—';
+  document.getElementById('walletCard').innerHTML=`
+    <div class="wc-top">
+      <div class="wc-av">${initials}</div>
+      <div style="min-width:0">
+        <div class="wc-addr">${addr} <span class="wc-copy" onclick="copyAddr('${addr}')">copy</span></div>
+        <div class="wc-sub">Ethereum Mainnet</div>
+      </div>
+    </div>
+    <div class="wc-stats">
+      <div class="wc-stat"><div class="wc-lbl">ETH Balance</div><div class="wc-val c-eth">${balStr}</div></div>
+      <div class="wc-stat"><div class="wc-lbl">Transactions</div><div class="wc-val cg">${txCount!==null?txCount.toLocaleString():'—'}</div></div>
+      <div class="wc-stat"><div class="wc-lbl">View on</div><div class="wc-val" style="font-size:14px"><a href="https://etherscan.io/address/${addr}" target="_blank" style="color:var(--blue);font-weight:700;text-decoration:none">Etherscan →</a></div></div>
+    </div>`;
+}
+
+// ─── PORTFOLIO VALUE ─────────────────────────────────────────────────────────
+function renderPortfolio(ethBal){
+  const el=document.getElementById('portfolioVal');
+  if(!ethPrice||!ethBal){el.style.display='none';return;}
+  el.style.display='flex';
+  const usdVal=(ethBal*ethPrice).toLocaleString('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2});
+  const chg=ethChange?ethChange.toFixed(2):null;
+  const chgClass=ethChange>=0?'pv-up':'pv-down';
+  const chgSign=ethChange>=0?'+':'';
+  el.innerHTML=`
+    <div>
+      <div class="pv-label">Portfolio Value</div>
+      <div class="pv-amount">${usdVal}</div>
+      <div class="pv-eth">${ethBal.toFixed(4)} ETH</div>
+    </div>
+    <div class="pv-price">
+      <div class="pv-price-lbl">ETH Price</div>
+      <div class="pv-price-val">$${ethPrice.toLocaleString()}</div>
+      ${chg?`<div class="pv-change ${chgClass}">${chgSign}${chg}% today</div>`:''}
+    </div>`;
+}
+
+// ─── ETH TRANSACTIONS ────────────────────────────────────────────────────────
+function renderTx(txs){
+  const el=document.getElementById('txBody');
+  if(!txs.length){el.innerHTML='<div class="empty">No ETH transactions found.</div>';return;}
+  const rows=txs.slice(0,25).map(tx=>{
+    const fromA=(tx.from||'').toLowerCase(),toA=(tx.to||'').toLowerCase();
+    const isIn=toA===curAddr,isSelf=fromA===toA;
+    const val=parseFloat(tx.value||0)/1e18;
+    const valStr=val>0?val.toFixed(4)+' ETH':'—';
+    const dir=isSelf?'SELF':isIn?'IN':'OUT';
+    const dCls=isSelf?'b-self':isIn?'b-in':'b-out';
+    const vCls=isSelf?'val-self':isIn?'val-in':'val-out';
+    const ok=tx.isError==='0';
+    const ts=parseInt(tx.timeStamp||0)*1000;
+    return `<tr onclick="showDetail('${tx.hash}','eth')">
+      <td><span class="mono hl">${sh(tx.hash,8,6)}</span></td>
+      <td><div class="ar">
+        <span class="av" style="background:${color(tx.from)}">${(tx.from[2]||'?').toUpperCase()}</span>
+        <span class="at">${sh(tx.from,6,4)}</span>
+        <span class="arw">→</span>
+        ${tx.to
+          ?`<span class="av" style="background:${color(tx.to)}">${(tx.to[2]||'?').toUpperCase()}</span><span class="at">${sh(tx.to,6,4)}</span>`
+          :`<span style="color:var(--txt3);font-size:11px">Contract</span>`}
+      </div></td>
+      <td><span class="badge ${dCls}">${dir}</span></td>
+      <td class="${vCls} mono" style="font-size:11px">${valStr}</td>
+      <td><span class="badge ${ok?'b-ok':'b-fail'}">${ok?'✓':'✗'}</span></td>
+      <td style="color:var(--txt3);font-size:11px;white-space:nowrap">${ago(ts)}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML=`<div style="overflow-x:auto"><table class="tbl">
+    <thead><tr><th>Hash</th><th>From → To</th><th>Dir</th><th>Value</th><th>Status</th><th>Age</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
+    ${txs.length>=25?`<div class="view-more"><span>${txs.length>=50?'Latest 50':'All '+txs.length}</span><a href="https://etherscan.io/address/${curAddr}" target="_blank">View all on Etherscan →</a></div>`:''}`;
+}
+
+// ─── TOKEN TRANSFERS ─────────────────────────────────────────────────────────
+function renderTokens(toks){
+  const el=document.getElementById('tokenBody');
+  if(!toks.length){el.innerHTML='<div class="empty">No ERC-20 token transfers found for this address.</div>';return;}
+  const rows=toks.slice(0,25).map(t=>{
+    const isIn=(t.to||'').toLowerCase()===curAddr;
+    const decimals=parseInt(t.tokenDecimal||18);
+    const val=(parseFloat(t.value||0)/Math.pow(10,decimals));
+    const valStr=val>0?val.toLocaleString(undefined,{maximumFractionDigits:4})+' '+t.tokenSymbol:'—';
+    const ts=parseInt(t.timeStamp||0)*1000;
+    const sym=(t.tokenSymbol||'?').slice(0,3).toUpperCase();
+    return `<tr onclick="window.open('https://etherscan.io/tx/${t.hash}','_blank')">
+      <td><span class="mono hl">${sh(t.hash,8,6)}</span></td>
+      <td><div class="ar">
+        <span class="tok-icon">${sym[0]||'?'}</span>
+        <span style="font-weight:600;color:var(--txt);font-size:12px">${t.tokenName||'Unknown'}</span>
+        <span class="badge" style="background:var(--blue-bg);color:var(--blue);margin-left:4px">${t.tokenSymbol||'?'}</span>
+      </div></td>
+      <td><span class="badge ${isIn?'b-in':'b-out'}">${isIn?'IN':'OUT'}</span></td>
+      <td class="${isIn?'val-in':'val-out'} mono" style="font-size:11px">${isIn?'+':'-'}${valStr}</td>
+      <td style="color:var(--txt3);font-size:11px;white-space:nowrap">${ago(ts)}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML=`<div style="overflow-x:auto"><table class="tbl">
+    <thead><tr><th>Hash</th><th>Token</th><th>Dir</th><th>Amount</th><th>Age</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
+    ${toks.length>=25?`<div class="view-more"><span>${toks.length>=50?'Latest 50':'All '+toks.length}</span><a href="https://etherscan.io/address/${curAddr}#tokentxns" target="_blank">View all on Etherscan →</a></div>`:''}`;
+}
+
+// ─── INTERNAL TRANSACTIONS ────────────────────────────────────────────────────
+function renderInternal(ints){
+  const el=document.getElementById('internalBody');
+  if(!ints.length){el.innerHTML='<div class="empty">No internal transactions found.<br><span style="font-size:11px">Internal transactions are ETH transfers triggered by smart contracts.</span></div>';return;}
+  const rows=ints.slice(0,25).map(t=>{
+    const isIn=(t.to||'').toLowerCase()===curAddr;
+    const val=parseFloat(t.value||0)/1e18;
+    const valStr=val>0?val.toFixed(6)+' ETH':'0 ETH';
+    const ts=parseInt(t.timeStamp||0)*1000;
+    return `<tr onclick="window.open('https://etherscan.io/tx/${t.hash}','_blank')">
+      <td><span class="mono hl">${sh(t.hash,8,6)}</span></td>
+      <td><div class="ar">
+        <span class="av" style="background:${color(t.from)}">${(t.from[2]||'?').toUpperCase()}</span>
+        <span class="at">${sh(t.from,6,4)}</span>
+        <span class="arw">→</span>
+        <span class="av" style="background:${color(t.to)}">${(t.to[2]||'?').toUpperCase()}</span>
+        <span class="at">${sh(t.to,6,4)}</span>
+      </div></td>
+      <td><span class="badge b-int">INTERNAL</span></td>
+      <td class="${isIn?'val-in':'val-out'} mono" style="font-size:11px">${isIn?'+':'-'}${valStr}</td>
+      <td style="color:var(--txt3);font-size:11px;white-space:nowrap">${ago(ts)}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML=`<div style="overflow-x:auto"><table class="tbl">
+    <thead><tr><th>Hash</th><th>From → To</th><th>Type</th><th>Value</th><th>Age</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
+    ${ints.length>=25?`<div class="view-more"><span>${ints.length>=50?'Latest 50':'All '+ints.length}</span><a href="https://etherscan.io/address/${curAddr}#internaltx" target="_blank">View all on Etherscan →</a></div>`:''}`;
+}
+
+// ─── TX DETAIL PANEL ─────────────────────────────────────────────────────────
+function showDetail(hash, type){
+  const tx=txCache.find(t=>t.hash===hash);
+  if(!tx) return;
+  const isIn=(tx.to||'').toLowerCase()===curAddr;
+  const val=(parseFloat(tx.value||0)/1e18).toFixed(6);
+  const fee=(tx.gasUsed&&tx.gasPrice)?(parseInt(tx.gasUsed)*parseInt(tx.gasPrice)/1e18).toFixed(8):'—';
+  const usdVal=ethPrice?(parseFloat(val)*ethPrice).toFixed(2):null;
+  const ts=parseInt(tx.timeStamp||0)*1000;
+  const ok=tx.isError==='0';
+
+  document.getElementById('ov').classList.add('show');
+  document.getElementById('panel').classList.add('open');
+  document.getElementById('panelBody').innerHTML=`
+    <div class="dr"><div class="dk">Hash</div><div class="dv m" style="color:var(--blue)">${hash}</div></div>
+    <div class="dr"><div class="dk">Status</div><div class="dv"><span class="badge ${ok?'b-ok':'b-fail'}">${ok?'✓ Success':'✗ Failed'}</span></div></div>
+    <div class="dr"><div class="dk">Block</div><div class="dv" style="font-weight:600">${parseInt(tx.blockNumber||0).toLocaleString()}</div></div>
+    <div class="dr"><div class="dk">Date & Time</div><div class="dv">${new Date(ts).toLocaleString()} (${ago(ts)})</div></div>
+    <div class="dr"><div class="dk">From</div><div class="dv m" style="color:var(--blue)">${tx.from||'—'}</div></div>
+    <div class="dr"><div class="dk">To</div><div class="dv m">${tx.to||'Contract Creation'}</div></div>
+    <div class="dr">
+      <div class="dk">Value</div>
+      <div class="dv" style="font-weight:800;font-size:17px;color:${isIn?'var(--green)':'var(--red)'}">
+        ${isIn?'+':'-'}${val} ETH
+        ${usdVal?`<span style="font-size:12px;font-weight:500;color:var(--txt2);margin-left:6px">≈ $${usdVal}</span>`:''}
+      </div>
+    </div>
+    <div class="dr"><div class="dk">Transaction Fee</div><div class="dv m">${fee} ETH</div></div>
+    <div class="dr"><div class="dk">Gas Used / Limit</div><div class="dv">${parseInt(tx.gasUsed||0).toLocaleString()} / ${parseInt(tx.gas||0).toLocaleString()}</div></div>
+    ${tx.functionName?`<div class="dr"><div class="dk">Function</div><div class="dv m" style="color:var(--blue)">${tx.functionName.split('(')[0]}</div></div>`:''}
+    <div class="dr"><div class="dk">View Full Details</div><div class="dv"><a href="https://etherscan.io/tx/${hash}" target="_blank" style="color:var(--blue);font-weight:600">Open on Etherscan →</a></div></div>
+  `;
+}
+function closePanel(){
+  document.getElementById('ov').classList.remove('show');
+  document.getElementById('panel').classList.remove('open');
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function sh(h,a=8,b=6){if(!h)return'—';if(h.length<=a+b+3)return h;return h.slice(0,a)+'…'+h.slice(-b);}
+function ago(ts){
+  const d=Math.floor((Date.now()-ts)/1000);
+  if(d<60)       return d+'s ago';
+  if(d<3600)     return Math.floor(d/60)+'m ago';
+  if(d<86400)    return Math.floor(d/3600)+'h ago';
+  if(d<2592000)  return Math.floor(d/86400)+'d ago';
+  return new Date(ts).toLocaleDateString();
+}
+function color(a){
+  if(!a)return'#5b8ff9';
+  const p=['#627eea','#3ecf8e','#f5a623','#9b7ef8','#f25f5c','#06b6d4','#f97316','#ec4899'];
+  return p[parseInt((a+'00').slice(2,4),16)%p.length];
+}
+function copyAddr(addr){
+  navigator.clipboard.writeText(addr).then(()=>showToast('✓ Address copied'));
+}
+function showToast(m){
+  const el=document.getElementById('toast');
+  el.textContent=m;el.classList.add('show');
+  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3200);
+}
+
+// ─── GENLAYER ANALYSIS ───────────────────────────────────────────────────────
+async function runGLAnalysis(){
+  const el = document.getElementById('aiBody');
+  el.innerHTML = `<div class="loading"><div class="loader"></div><br>
+    Calling your GenLayer contract…<br>
+    <span style="font-size:11px;color:var(--txt3)">Fetching live data and running LLM analysis on-chain. This takes 30–60 seconds.</span>
+  </div>`;
+
+  try {
+    // Step 1: Call analyze() on the contract — this triggers the AI on-chain
+    const writeRes = await glRpc('gen_call', {
+      to: GL_CONTRACT,
+      data: glEncode('analyze', [curAddr]),
+    });
+
+    if (writeRes.error) throw new Error(writeRes.error.message || 'Contract call failed');
+
+    // Step 2: Read back the result via get_analysis_data()
+    const readRes = await glRpc('gen_call', {
+      to: GL_CONTRACT,
+      data: glEncode('get_analysis_data', []),
+    });
+
+    if (readRes.error) throw new Error(readRes.error.message || 'Read failed');
+
+    const result = readRes.result;
+    let analysis = null;
+
+    // Parse analysis from result
+    if (result && result.analysis) {
+      try { analysis = JSON.parse(result.analysis); } catch(e) { analysis = null; }
+    }
+    if (!analysis && result) analysis = result;
+
+    renderAIAnalysis(analysis || result);
+
+  } catch(e) {
+    el.innerHTML = `<div class="empty">
+      Could not complete analysis.<br>
+      <span style="font-size:11px;color:var(--txt3)">${e.message}</span><br><br>
+      <button onclick="runGLAnalysis()" class="btn-rf" style="margin-top:8px">Try again</button>
+    </div>`;
+  }
+}
+
+async function glRpc(method, params){
+  const res = await fetch(GL_RPC, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({jsonrpc:'2.0', id:Date.now(), method, params}),
+    signal: AbortSignal.timeout(90000),
+  });
+  return await res.json();
+}
+
+function glEncode(fn, args){
+  // Simple JSON encoding for GenLayer contract calls
+  return JSON.stringify({method: fn, args});
+}
+
+function renderAIAnalysis(data){
+  const el = document.getElementById('aiBody');
+  if(!data){ el.innerHTML='<div class="empty">No analysis data returned. Try again.</div>'; return; }
+
+  // Handle both flat and nested analysis
+  const a = data.analysis ? (typeof data.analysis === 'string' ? JSON.parse(data.analysis) : data.analysis) : data;
+
+  const actColor = {
+    'Low':'var(--green)','Medium':'var(--orange)',
+    'High':'var(--red)','Very High':'var(--red)'
+  }[a.activity_level] || 'var(--blue)';
+
+  el.innerHTML = `
+    <div style="padding:20px">
+      <!-- Summary -->
+      <div style="background:var(--blue-bg);border:1px solid var(--blue-br);border-radius:10px;padding:16px 18px;margin-bottom:16px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--txt3);margin-bottom:6px">AI Summary</div>
+        <div style="font-size:13px;color:var(--txt);line-height:1.7">${a.summary || '—'}</div>
+      </div>
+
+      <!-- Stats grid -->
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px">
+        <div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:14px 16px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--txt3);margin-bottom:5px">Activity Level</div>
+          <div style="font-weight:800;font-size:18px;color:${actColor}">${a.activity_level || '—'}</div>
+        </div>
+        <div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:14px 16px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--txt3);margin-bottom:5px">Primary Activity</div>
+          <div style="font-weight:700;font-size:13px;color:var(--txt)">${a.primary_activity || '—'}</div>
+        </div>
+        <div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:14px 16px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--txt3);margin-bottom:5px">Wallet Age</div>
+          <div style="font-weight:700;font-size:13px;color:var(--txt)">${a.wallet_age || '—'}</div>
+        </div>
+        <div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:14px 16px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--txt3);margin-bottom:5px">Transactions</div>
+          <div style="font-weight:700;font-size:13px;color:var(--txt)">${a.transaction_count || '—'}</div>
+        </div>
+      </div>
+
+      <!-- Risk signals -->
+      <div style="background:${a.risk_signals && a.risk_signals.toLowerCase()!=='none detected'?'var(--red-bg)':'var(--green-bg)'};border:1px solid ${a.risk_signals && a.risk_signals.toLowerCase()!=='none detected'?'rgba(240,82,82,.25)':'rgba(52,199,123,.25)'};border-radius:9px;padding:14px 16px;margin-bottom:12px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--txt3);margin-bottom:5px">Risk Signals</div>
+        <div style="font-size:13px;font-weight:600;color:${a.risk_signals && a.risk_signals.toLowerCase()!=='none detected'?'var(--red)':'var(--green)'}">${a.risk_signals || 'None detected'}</div>
+      </div>
+
+      <!-- Notable facts -->
+      <div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:14px 16px;margin-bottom:16px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--txt3);margin-bottom:5px">Notable Facts</div>
+        <div style="font-size:13px;color:var(--txt2)">${a.notable_facts || 'None'}</div>
+      </div>
+
+      <!-- GenLayer badge -->
+      <div style="display:flex;align-items:center;gap:8px;justify-content:center;padding:10px;border-top:1px solid var(--bdr)">
+        <span style="font-size:16px">⬡</span>
+        <span style="font-size:11px;color:var(--txt3)">Analysis generated by your <strong style="color:#627eea">GenLayer Intelligent Contract</strong> · Contract: ${GL_CONTRACT.slice(0,10)}…</span>
+      </div>
+
+      <div style="text-align:center;margin-top:12px">
+        <button onclick="runGLAnalysis()" class="btn-rf">↻ Re-analyse</button>
+      </div>
+    </div>
+  `;
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+document.getElementById('searchInput').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
+renderHistory();
+fetchEthPrice();
+</script>
+</body>
+</html>

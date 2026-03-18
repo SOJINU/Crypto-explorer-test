@@ -186,12 +186,12 @@ nav{position:sticky;top:0;z-index:100;background:var(--nav-bg);backdrop-filter:b
 const KEY = '7YF12W56XJVUQWPX2B1AXBR6ADS4IXK25';
 
 const CHAINS = {
-  eth:      { cid: '1',     name:'Ethereum',  sym:'ETH',   color:'#627eea', api:'https://api.etherscan.io/v2/api',            ex:'https://etherscan.io/tx/',            addr:'https://etherscan.io/address/' },
-  bsc:      { cid: '56',    name:'BNB Chain', sym:'BNB',   color:'#f0b90b', api:'https://api.bscscan.com/api',             ex:'https://bscscan.com/tx/',              addr:'https://bscscan.com/address/' },
-  polygon:  { cid: '137',   name:'Polygon',   sym:'MATIC', color:'#8247e5', api:'https://api.polygonscan.com/api',         ex:'https://polygonscan.com/tx/',          addr:'https://polygonscan.com/address/' },
-  arbitrum: { cid: '42161', name:'Arbitrum',  sym:'ETH',   color:'#28a0f0', api:'https://api.arbiscan.io/api',             ex:'https://arbiscan.io/tx/',              addr:'https://arbiscan.io/address/' },
-  optimism: { cid: '10',    name:'Optimism',  sym:'ETH',   color:'#ff0420', api:'https://api-optimistic.etherscan.io/api', ex:'https://optimistic.etherscan.io/tx/', addr:'https://optimistic.etherscan.io/address/' },
-  base:     { cid: '8453',  name:'Base',      sym:'ETH',   color:'#0052ff', api:'https://api.basescan.org/api',            ex:'https://basescan.org/tx/',             addr:'https://basescan.org/address/' },
+  eth:      { name:'Ethereum',  sym:'ETH',   color:'#627eea', api:'https://api.etherscan.io/api',            ex:'https://etherscan.io/tx/',            addr:'https://etherscan.io/address/' },
+  bsc:      { name:'BNB Chain', sym:'BNB',   color:'#f0b90b', api:'https://api.bscscan.com/api',             ex:'https://bscscan.com/tx/',              addr:'https://bscscan.com/address/' },
+  polygon:  { name:'Polygon',   sym:'MATIC', color:'#8247e5', api:'https://api.polygonscan.com/api',         ex:'https://polygonscan.com/tx/',          addr:'https://polygonscan.com/address/' },
+  arbitrum: { name:'Arbitrum',  sym:'ETH',   color:'#28a0f0', api:'https://api.arbiscan.io/api',             ex:'https://arbiscan.io/tx/',              addr:'https://arbiscan.io/address/' },
+  optimism: { name:'Optimism',  sym:'ETH',   color:'#ff0420', api:'https://api-optimistic.etherscan.io/api', ex:'https://optimistic.etherscan.io/tx/', addr:'https://optimistic.etherscan.io/address/' },
+  base:     { name:'Base',      sym:'ETH',   color:'#0052ff', api:'https://api.basescan.org/api',            ex:'https://basescan.org/tx/',             addr:'https://basescan.org/address/' },
 };
 
 // CORS proxies — tried in order when direct fetch is blocked
@@ -305,9 +305,7 @@ async function doSearch(){
 // ─── FETCH ONE CHAIN ──────────────────────────────────────────────────────────
 async function fetchChain(id, address){
   const c   = CHAINS[id];
-  // If the API URL is V2, inject the required chainid parameter
-  const chainParam = c.api.includes('/v2/') ? `chainid=${c.cid}&` : '';
-  const url = `${c.api}?${chainParam}module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&page=1&offset=50&sort=desc&apikey=${KEY}`;
+  const url = `${c.api}?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&page=1&offset=50&sort=desc&apikey=${KEY}`;
 
   try {
     const json = await smartFetch(url);
@@ -360,4 +358,153 @@ function renderChain(id, address, txs){
     const isSelf   = fromAddr === toAddr;
     const val      = parseFloat(tx.value||0) / 1e18;
     const valStr   = val > 0 ? val.toFixed(4)+' '+c.sym : '—';
-    const dir      = isSelf ? 'SELF' : isI
+    const dir      = isSelf ? 'SELF' : isIn ? 'IN' : 'OUT';
+    const dirCls   = isSelf ? 'b-self' : isIn ? 'b-in' : 'b-out';
+    const valCls   = isSelf ? 'val-self' : isIn ? 'val-in' : 'val-out';
+    const ok       = tx.isError === '0';
+    const ts       = parseInt(tx.timeStamp||0) * 1000;
+    const fromC    = tx.from && tx.from.length>2 ? tx.from[2].toUpperCase() : '?';
+    const toC      = tx.to   && tx.to.length>2   ? tx.to[2].toUpperCase()   : '?';
+
+    return `<tr onclick="showDetail('${id}','${tx.hash}')">
+      <td><span class="mono hl">${sh(tx.hash,8,6)}</span></td>
+      <td>
+        <div class="ar">
+          <span class="av" style="background:${acColor(tx.from)}">${fromC}</span>
+          <span class="at">${sh(tx.from,6,4)}</span>
+          <span class="arw">→</span>
+          ${tx.to
+            ? `<span class="av" style="background:${acColor(tx.to)}">${toC}</span><span class="at">${sh(tx.to,6,4)}</span>`
+            : `<span style="color:var(--txt3);font-size:11px">Contract</span>`}
+        </div>
+      </td>
+      <td><span class="badge ${dirCls}">${dir}</span></td>
+      <td class="${valCls} mono" style="font-size:11px">${valStr}</td>
+      <td><span class="badge ${ok?'b-ok':'b-fail'}">${ok?'✓ OK':'✗ Fail'}</span></td>
+      <td style="color:var(--txt3);font-size:11px;white-space:nowrap">${ago(ts)}</td>
+    </tr>`;
+  }).join('');
+
+  card.innerHTML = `
+    <div style="overflow-x:auto">
+    <table class="tbl">
+      <thead><tr><th>Hash</th><th>From → To</th><th>Dir</th><th>Value</th><th>Status</th><th>Age</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    </div>
+    ${txs.length >= 25 ? `
+    <div class="view-more">
+      <span>${txs.length >= 50 ? 'Showing latest 50 transactions' : 'All '+txs.length+' transactions'}</span>
+      <a href="${c.addr}${address}" target="_blank">View all on ${c.name} Explorer →</a>
+    </div>` : ''}
+  `;
+}
+
+// ─── WALLET HEADER ────────────────────────────────────────────────────────────
+function renderWalletHead(a){
+  const bg = acColor(a);
+  const initials = a.length >= 4 ? a[2].toUpperCase()+a[3].toUpperCase() : '0X';
+  document.getElementById('walletHead').innerHTML = `
+    <div class="wh-top">
+      <div class="wh-av" style="background:linear-gradient(135deg,${bg},#8247e5)">${initials}</div>
+      <div style="min-width:0">
+        <div class="wh-addr">${a}</div>
+        <div class="wh-sub" id="wh-sub">Searching ${selected.size} chain${selected.size!==1?'s':''}…</div>
+      </div>
+    </div>
+    <div class="wh-stats">
+      <div class="wh-stat"><div class="wh-lbl">Chains searched</div><div class="wh-val cb">${selected.size}</div></div>
+      <div class="wh-stat"><div class="wh-lbl">Total transactions</div><div class="wh-val cg" id="wh-total">—</div></div>
+      <div class="wh-stat"><div class="wh-lbl">Active on</div><div class="wh-val co" id="wh-active">—</div></div>
+    </div>`;
+}
+
+function updateStats(){
+  let total=0, active=0;
+  for(const [,txs] of Object.entries(txData)){
+    total += txs.length;
+    if(txs.length>0) active++;
+  }
+  const te=document.getElementById('wh-total');
+  const ae=document.getElementById('wh-active');
+  const se=document.getElementById('wh-sub');
+  if(te) te.textContent = total.toLocaleString();
+  if(ae) ae.textContent = active+' chain'+(active!==1?'s':'');
+  if(se) se.textContent = sh(curAddr,10,8)+'  ·  '+total.toLocaleString()+' transaction'+(total!==1?'s':'')+' found';
+}
+
+// ─── DETAIL PANEL ─────────────────────────────────────────────────────────────
+function showDetail(chainId, hash){
+  const c  = CHAINS[chainId];
+  const tx = (txData[chainId]||[]).find(t=>t.hash===hash);
+  if(!tx) return;
+
+  const isIn = (tx.to||'').toLowerCase() === curAddr;
+  const val  = (parseFloat(tx.value||0)/1e18).toFixed(6);
+  const fee  = (tx.gasUsed&&tx.gasPrice) ? (parseInt(tx.gasUsed)*parseInt(tx.gasPrice)/1e18).toFixed(8) : '—';
+  const ts   = parseInt(tx.timeStamp||0)*1000;
+  const ok   = tx.isError==='0';
+
+  document.getElementById('ov').classList.add('show');
+  document.getElementById('panel').classList.add('open');
+
+  document.getElementById('panelBody').innerHTML = `
+    <div class="dr">
+      <div class="dk">Network</div>
+      <div class="dv" style="display:flex;align-items:center;gap:7px">
+        <span style="width:10px;height:10px;border-radius:50%;background:${c.color};display:inline-block;flex-shrink:0"></span>
+        <span style="font-weight:700">${c.name}</span>
+      </div>
+    </div>
+    <div class="dr"><div class="dk">Transaction Hash</div><div class="dv m" style="color:var(--blue)">${hash}</div></div>
+    <div class="dr"><div class="dk">Status</div><div class="dv"><span class="badge ${ok?'b-ok':'b-fail'}">${ok?'✓ Success':'✗ Failed'}</span></div></div>
+    <div class="dr"><div class="dk">Block</div><div class="dv" style="font-weight:600">${parseInt(tx.blockNumber||0).toLocaleString()}</div></div>
+    <div class="dr"><div class="dk">Date & Time</div><div class="dv">${new Date(ts).toLocaleString()} <span style="color:var(--txt3)">(${ago(ts)})</span></div></div>
+    <div class="dr"><div class="dk">From</div><div class="dv m" style="color:var(--blue)">${tx.from||'—'}</div></div>
+    <div class="dr"><div class="dk">To</div><div class="dv m">${tx.to||'Contract Creation'}</div></div>
+    <div class="dr">
+      <div class="dk">Value</div>
+      <div class="dv" style="font-weight:800;font-size:16px;color:${isIn?'var(--green)':'var(--red)'}">
+        ${isIn?'+':'-'}${val} ${c.sym}
+      </div>
+    </div>
+    <div class="dr"><div class="dk">Transaction Fee</div><div class="dv m">${fee} ${c.sym}</div></div>
+    <div class="dr"><div class="dk">Gas Used / Limit</div><div class="dv">${parseInt(tx.gasUsed||0).toLocaleString()} / ${parseInt(tx.gas||0).toLocaleString()}</div></div>
+    ${tx.functionName?`<div class="dr"><div class="dk">Function Called</div><div class="dv m" style="color:var(--blue)">${tx.functionName.split('(')[0]}</div></div>`:''}
+    <div class="dr">
+      <div class="dk">View Full Details</div>
+      <div class="dv"><a href="${c.ex}${hash}" target="_blank" style="color:var(--blue);font-weight:600">Open on ${c.name} Explorer →</a></div>
+    </div>
+  `;
+}
+
+function closePanel(){
+  document.getElementById('ov').classList.remove('show');
+  document.getElementById('panel').classList.remove('open');
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function sh(h,a=8,b=6){ if(!h)return'—'; if(h.length<=a+b+3)return h; return h.slice(0,a)+'…'+h.slice(-b); }
+function ago(ts){
+  const d=Math.floor((Date.now()-ts)/1000);
+  if(d<60)      return d+'s ago';
+  if(d<3600)    return Math.floor(d/60)+'m ago';
+  if(d<86400)   return Math.floor(d/3600)+'h ago';
+  if(d<2592000) return Math.floor(d/86400)+'d ago';
+  return new Date(ts).toLocaleDateString();
+}
+function acColor(a){
+  if(!a) return '#5b8ff9';
+  const p=['#5b8ff9','#3ecf8e','#f5a623','#9b7ef8','#f25f5c','#06b6d4','#f97316','#ec4899'];
+  return p[parseInt((a+'00').slice(2,4),16)%p.length];
+}
+function showToast(m){
+  const el=document.getElementById('toast');
+  el.textContent=m; el.classList.add('show');
+  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),3500);
+}
+
+document.getElementById('searchInput').addEventListener('keydown',e=>{ if(e.key==='Enter') doSearch(); });
+</script>
+</body>
+</html>

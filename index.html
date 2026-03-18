@@ -198,13 +198,16 @@ nav{position:sticky;top:0;z-index:100;background:var(--nav-bg);backdrop-filter:b
 const API_KEY = '7YF12W56XJVUQWPX2B1AXBR6ADS4IXK25';
 const CORS    = 'https://api.allorigins.win/get?url=';
 
+// Etherscan V2 — one unified endpoint, chain selected by chainid
+const ES_V2 = 'https://api.etherscan.io/v2/api';
+
 const CHAINS = {
-  eth:      { name:'Ethereum',  sym:'ETH',   color:'#627eea', api:'https://api.etherscan.io/api',            ex:'https://etherscan.io/tx/',            addr:'https://etherscan.io/address/' },
-  bsc:      { name:'BNB Chain', sym:'BNB',   color:'#f0b90b', api:'https://api.bscscan.com/api',             ex:'https://bscscan.com/tx/',              addr:'https://bscscan.com/address/' },
-  polygon:  { name:'Polygon',   sym:'MATIC', color:'#8247e5', api:'https://api.polygonscan.com/api',         ex:'https://polygonscan.com/tx/',          addr:'https://polygonscan.com/address/' },
-  arbitrum: { name:'Arbitrum',  sym:'ETH',   color:'#28a0f0', api:'https://api.arbiscan.io/api',             ex:'https://arbiscan.io/tx/',              addr:'https://arbiscan.io/address/' },
-  optimism: { name:'Optimism',  sym:'ETH',   color:'#ff0420', api:'https://api-optimistic.etherscan.io/api', ex:'https://optimistic.etherscan.io/tx/', addr:'https://optimistic.etherscan.io/address/' },
-  base:     { name:'Base',      sym:'ETH',   color:'#0052ff', api:'https://api.basescan.org/api',            ex:'https://basescan.org/tx/',             addr:'https://basescan.org/address/' },
+  eth:      { name:'Ethereum',  sym:'ETH',   color:'#627eea', chainid:1,     ex:'https://etherscan.io/tx/',            addr:'https://etherscan.io/address/' },
+  bsc:      { name:'BNB Chain', sym:'BNB',   color:'#f0b90b', chainid:56,    ex:'https://bscscan.com/tx/',              addr:'https://bscscan.com/address/' },
+  polygon:  { name:'Polygon',   sym:'MATIC', color:'#8247e5', chainid:137,   ex:'https://polygonscan.com/tx/',          addr:'https://polygonscan.com/address/' },
+  arbitrum: { name:'Arbitrum',  sym:'ETH',   color:'#28a0f0', chainid:42161, ex:'https://arbiscan.io/tx/',              addr:'https://arbiscan.io/address/' },
+  optimism: { name:'Optimism',  sym:'ETH',   color:'#ff0420', chainid:10,    ex:'https://optimistic.etherscan.io/tx/', addr:'https://optimistic.etherscan.io/address/' },
+  base:     { name:'Base',      sym:'ETH',   color:'#0052ff', chainid:8453,  ex:'https://basescan.org/tx/',             addr:'https://basescan.org/address/' },
 };
 
 let selected = new Set(['eth','bsc','polygon','arbitrum','optimism','base']);
@@ -310,7 +313,7 @@ async function doSearch(){
 // ─── FETCH ONE CHAIN ──────────────────────────────────────────────────────────
 async function fetchChain(id, address){
   const c   = CHAINS[id];
-  const url = `${c.api}?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&page=1&offset=50&sort=desc&apikey=${API_KEY}`;
+  const url = `${ES_V2}?chainid=${c.chainid}&module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&page=1&offset=50&sort=desc&apikey=${API_KEY}`;
 
   try {
     const json = await fetchWithProxy(url);

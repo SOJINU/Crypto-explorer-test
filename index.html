@@ -181,24 +181,21 @@ nav{position:sticky;top:0;z-index:100;background:var(--nav-bg);backdrop-filter:b
 
 <script>
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
-// Each chain has its OWN free API — no V2 unified endpoint needed
-// Your Etherscan API key works across all of these
-const KEY = '7YF12W56XJVUQWPX2B1AXBR6ADS4IXK25';
+// Etherscan V2 — one endpoint, one key, all chains
+const KEY  = '7YF12W56XJVUQWPX2B1AXBR6ADS4IXK25';
+const BASE = 'https://api.etherscan.io/v2/api';
 
 const CHAINS = {
-  eth:      { name:'Ethereum',  sym:'ETH',   color:'#627eea', api:'https://api.etherscan.io/api',            ex:'https://etherscan.io/tx/',            addr:'https://etherscan.io/address/' },
-  bsc:      { name:'BNB Chain', sym:'BNB',   color:'#f0b90b', api:'https://api.bscscan.com/api',             ex:'https://bscscan.com/tx/',              addr:'https://bscscan.com/address/' },
-  polygon:  { name:'Polygon',   sym:'MATIC', color:'#8247e5', api:'https://api.polygonscan.com/api',         ex:'https://polygonscan.com/tx/',          addr:'https://polygonscan.com/address/' },
-  arbitrum: { name:'Arbitrum',  sym:'ETH',   color:'#28a0f0', api:'https://api.arbiscan.io/api',             ex:'https://arbiscan.io/tx/',              addr:'https://arbiscan.io/address/' },
-  optimism: { name:'Optimism',  sym:'ETH',   color:'#ff0420', api:'https://api-optimistic.etherscan.io/api', ex:'https://optimistic.etherscan.io/tx/', addr:'https://optimistic.etherscan.io/address/' },
-  base:     { name:'Base',      sym:'ETH',   color:'#0052ff', api:'https://api.basescan.org/api',            ex:'https://basescan.org/tx/',             addr:'https://basescan.org/address/' },
+  eth:      { name:'Ethereum',  sym:'ETH',   color:'#627eea', id:1,     ex:'https://etherscan.io/tx/',            addr:'https://etherscan.io/address/' },
+  bsc:      { name:'BNB Chain', sym:'BNB',   color:'#f0b90b', id:56,    ex:'https://bscscan.com/tx/',              addr:'https://bscscan.com/address/' },
+  polygon:  { name:'Polygon',   sym:'MATIC', color:'#8247e5', id:137,   ex:'https://polygonscan.com/tx/',          addr:'https://polygonscan.com/address/' },
+  arbitrum: { name:'Arbitrum',  sym:'ETH',   color:'#28a0f0', id:42161, ex:'https://arbiscan.io/tx/',              addr:'https://arbiscan.io/address/' },
+  optimism: { name:'Optimism',  sym:'ETH',   color:'#ff0420', id:10,    ex:'https://optimistic.etherscan.io/tx/', addr:'https://optimistic.etherscan.io/address/' },
+  base:     { name:'Base',      sym:'ETH',   color:'#0052ff', id:8453,  ex:'https://basescan.org/tx/',             addr:'https://basescan.org/address/' },
 };
 
-// CORS proxies — tried in order when direct fetch is blocked
-const PROXIES = [
-  u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
-  u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
-];
+// CORS proxy — only needed when opening file locally (not needed on GitHub Pages)
+const PROXY = u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`;
 
 let selected = new Set(['eth','bsc','polygon','arbitrum','optimism','base']);
 let curAddr  = '';
@@ -222,33 +219,25 @@ function toggleChain(id, el){
   }
 }
 
-// ─── SMART FETCH — tries direct then each proxy ───────────────────────────────
+// ─── SMART FETCH ─────────────────────────────────────────────────────────────
 async function smartFetch(apiUrl){
-  // 1. Try direct (works fine on GitHub Pages — no CORS issue there)
+  // Try direct first — works perfectly on GitHub Pages
   try {
-    const r = await fetch(apiUrl, { signal: AbortSignal.timeout(10000) });
+    const r = await fetch(apiUrl, { signal: AbortSignal.timeout(12000) });
     if(r.ok){
       const j = await r.json();
-      // Valid Etherscan response has a "status" field
       if(j.status !== undefined) return j;
     }
-  } catch(e){ /* CORS blocked locally — try proxies */ }
+  } catch(e){}
 
-  // 2. Try proxies in order
-  for(const proxy of PROXIES){
-    try {
-      const r = await fetch(proxy(apiUrl), { signal: AbortSignal.timeout(15000) });
-      if(!r.ok) continue;
-      const data = await r.json();
-      // corsproxy.io returns JSON directly
-      if(data.status !== undefined) return data;
-      // allorigins.win wraps in { contents: "..." }
-      if(data.contents){
-        const inner = JSON.parse(data.contents);
-        if(inner.status !== undefined) return inner;
-      }
-    } catch(e){ continue; }
-  }
+  // Fallback proxy — for local file opening only
+  try {
+    const r = await fetch(PROXY(apiUrl), { signal: AbortSignal.timeout(15000) });
+    if(!r.ok) throw new Error('Proxy error');
+    const data = await r.json();
+    if(data.status !== undefined) return data;
+    if(data.contents) return JSON.parse(data.contents);
+  } catch(e){}
 
   throw new Error('Request failed — please try again');
 }
@@ -305,7 +294,7 @@ async function doSearch(){
 // ─── FETCH ONE CHAIN ──────────────────────────────────────────────────────────
 async function fetchChain(id, address){
   const c   = CHAINS[id];
-  const url = `${c.api}?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&page=1&offset=50&sort=desc&apikey=${KEY}`;
+  const url = `${BASE}?chainid=${c.id}&module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&page=1&offset=50&sort=desc&apikey=${KEY}`;
 
   try {
     const json = await smartFetch(url);

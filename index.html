@@ -701,38 +701,49 @@ function showToast(m){
 }
 
 // ─── GENLAYER ANALYSIS ───────────────────────────────────────────────────────
+// Dummy sender address — required by gen_call but not used for reads
+const GL_SENDER = '0x0000000000000000000000000000000000000001';
+
 async function runGLAnalysis(){
   const el = document.getElementById('aiBody');
   el.innerHTML = `<div class="loading"><div class="loader"></div><br>
     Calling your GenLayer contract…<br>
-    <span style="font-size:11px;color:var(--txt3)">Fetching live data and running LLM analysis on-chain. This takes 30–60 seconds.</span>
+    <span style="font-size:11px;color:var(--txt3)">Fetching live Etherscan data and running LLM analysis on-chain. This takes 30–60 seconds.</span>
   </div>`;
 
   try {
-    // Step 1: Call analyze() on the contract — this triggers the AI on-chain
-    const writeRes = await glRpc('gen_call', {
-      to: GL_CONTRACT,
-      data: glEncode('analyze', [curAddr]),
-    });
-
+    // Step 1: Call analyze(wallet_address) — write call, triggers AI on-chain
+    const writeRes = await glCall('write', 'analyze', [curAddr]);
     if (writeRes.error) throw new Error(writeRes.error.message || 'Contract call failed');
 
-    // Step 2: Read back the result via get_analysis_data()
-    const readRes = await glRpc('gen_call', {
-      to: GL_CONTRACT,
-      data: glEncode('get_analysis_data', []),
-    });
-
+    // Step 2: Read back the result
+    const readRes = await glCall('read', 'get_analysis_data', []);
     if (readRes.error) throw new Error(readRes.error.message || 'Read failed');
 
-    const result = readRes.result;
-    let analysis = null;
+    // Decode the result
+    let result = readRes.result;
 
-    // Parse analysis from result
-    if (result && result.analysis) {
-      try { analysis = JSON.parse(result.analysis); } catch(e) { analysis = null; }
+    // GenLayer returns hex-encoded msgpack — decode it
+    if (typeof result === 'string' && result.startsWith('0x')) {
+      try {
+        // Try to parse as JSON directly after hex decode
+        const hex = result.slice(2);
+        const bytes = new Uint8Array(hex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+        const text = new TextDecoder().decode(bytes).replace(/[^ -~]/g, '');
+        const jsonStart = text.indexOf('{');
+        const jsonEnd = text.lastIndexOf('}');
+        if (jsonStart !== -1) {
+          result = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+        }
+      } catch(e) { /* keep raw result */ }
     }
-    if (!analysis && result) analysis = result;
+
+    // Extract analysis field
+    let analysis = null;
+    if (result && typeof result === 'object' && result.analysis) {
+      try { analysis = typeof result.analysis === 'string' ? JSON.parse(result.analysis) : result.analysis; } catch(e) {}
+    }
+    if (!analysis && result && typeof result === 'object') analysis = result;
 
     renderAIAnalysis(analysis || result);
 
@@ -745,19 +756,39 @@ async function runGLAnalysis(){
   }
 }
 
-async function glRpc(method, params){
+// Make a gen_call to the HexploreAnalyzer contract
+async function glCall(type, method, args){
+  // GenLayer calldata: JSON-encode the method call
+  const calldata = glEncodeCalldata(method, args);
+
   const res = await fetch(GL_RPC, {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({jsonrpc:'2.0', id:Date.now(), method, params}),
-    signal: AbortSignal.timeout(90000),
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: Date.now(),
+      method: 'gen_call',
+      params: [{
+        from: GL_SENDER,
+        to:   GL_CONTRACT,
+        data: calldata,
+        type: type,
+        gas:  '0x5208',
+        value:'0x0'
+      }]
+    }),
+    signal: AbortSignal.timeout(120000),
   });
   return await res.json();
 }
 
-function glEncode(fn, args){
-  // Simple JSON encoding for GenLayer contract calls
-  return JSON.stringify({method: fn, args});
+// Encode method call as hex calldata for GenLayer
+function glEncodeCalldata(method, args){
+  // GenLayer uses msgpack-like encoding but accepts JSON calldata too
+  // Format: encode as UTF-8 hex the JSON representation
+  const payload = JSON.stringify({ method, args });
+  const bytes = new TextEncoder().encode(payload);
+  return '0x' + Array.from(bytes).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
 function renderAIAnalysis(data){

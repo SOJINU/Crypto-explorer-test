@@ -259,6 +259,7 @@ nav{position:sticky;top:0;z-index:100;background:var(--nav-bg);backdrop-filter:b
       <button class="tab on"  onclick="switchTab('txns',this)">Transactions <span class="tab-count" id="cnt-txns">—</span></button>
       <button class="tab"     onclick="switchTab('tokens',this)">Token Transfers <span class="tab-count" id="cnt-tokens">—</span></button>
       <button class="tab"     onclick="switchTab('internal',this)">Internal <span class="tab-count" id="cnt-internal">—</span></button>
+      <button class="tab" id="tab-btn-ai" onclick="switchTab('ai',this)">🤖 AI Analysis <span class="tab-count" id="cnt-ai" style="background:rgba(98,126,234,.15);color:#627eea">GenLayer</span></button>
     </div>
 
     <!-- Transaction tab -->
@@ -285,6 +286,23 @@ nav{position:sticky;top:0;z-index:100;background:var(--nav-bg);backdrop-filter:b
       </div>
     </div>
 
+    <!-- AI ANALYSIS TAB -->
+    <div id="tab-ai" style="display:none">
+      <div class="card">
+        <div class="card-hd">
+          <span class="card-ttl">🤖 AI Wallet Analysis</span>
+          <span style="font-size:11px;color:#627eea;font-weight:600;background:rgba(98,126,234,.1);padding:3px 10px;border-radius:20px;border:1px solid rgba(98,126,234,.2)">⬡ Powered by GenLayer</span>
+        </div>
+        <div id="aiBody">
+          <div class="empty" style="padding:32px 20px">
+            Click <strong>Analyse with GenLayer</strong> to generate an AI-powered analysis of this wallet.<br>
+            <span style="font-size:11px;color:var(--txt3)">Your Intelligent Contract fetches live data and runs it through an LLM on-chain.</span><br><br>
+            <button onclick="runGLAnalysis()" class="s-btn" style="margin-top:4px">⬡ Analyse with GenLayer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -304,6 +322,10 @@ nav{position:sticky;top:0;z-index:100;background:var(--nav-bg);backdrop-filter:b
 const KEY  = '7MY5854WUM8TQIVSK9HSC5ZYB5VW356SZD';
 const API  = `https://api.etherscan.io/v2/api?chainid=1&apikey=${KEY}`;
 const CORS = u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`;
+
+// ─── GENLAYER CONFIG ─────────────────────────────────────────────────────────
+const GL_RPC      = 'https://studio.genlayer.com/api';
+const GL_CONTRACT = '0x31EDcaD65AD30f6743f21657D37028E439EA7851';
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let curAddr   = '';
@@ -413,7 +435,7 @@ async function fetchEthPrice(){
 function switchTab(tab,el){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   el.classList.add('on');
-  ['txns','tokens','internal'].forEach(t=>
+  ['txns','tokens','internal','ai'].forEach(t=>
     document.getElementById('tab-'+t).style.display=t===tab?'block':'none'
   );
 }
@@ -676,6 +698,131 @@ function showToast(m){
   const el=document.getElementById('toast');
   el.textContent=m;el.classList.add('show');
   clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3200);
+}
+
+// ─── GENLAYER ANALYSIS ───────────────────────────────────────────────────────
+async function runGLAnalysis(){
+  const el = document.getElementById('aiBody');
+  el.innerHTML = `<div class="loading"><div class="loader"></div><br>
+    Calling your GenLayer contract…<br>
+    <span style="font-size:11px;color:var(--txt3)">Fetching live data and running LLM analysis on-chain. This takes 30–60 seconds.</span>
+  </div>`;
+
+  try {
+    // Step 1: Call analyze() on the contract — this triggers the AI on-chain
+    const writeRes = await glRpc('gen_call', {
+      to: GL_CONTRACT,
+      data: glEncode('analyze', [curAddr]),
+    });
+
+    if (writeRes.error) throw new Error(writeRes.error.message || 'Contract call failed');
+
+    // Step 2: Read back the result via get_analysis_data()
+    const readRes = await glRpc('gen_call', {
+      to: GL_CONTRACT,
+      data: glEncode('get_analysis_data', []),
+    });
+
+    if (readRes.error) throw new Error(readRes.error.message || 'Read failed');
+
+    const result = readRes.result;
+    let analysis = null;
+
+    // Parse analysis from result
+    if (result && result.analysis) {
+      try { analysis = JSON.parse(result.analysis); } catch(e) { analysis = null; }
+    }
+    if (!analysis && result) analysis = result;
+
+    renderAIAnalysis(analysis || result);
+
+  } catch(e) {
+    el.innerHTML = `<div class="empty">
+      Could not complete analysis.<br>
+      <span style="font-size:11px;color:var(--txt3)">${e.message}</span><br><br>
+      <button onclick="runGLAnalysis()" class="btn-rf" style="margin-top:8px">Try again</button>
+    </div>`;
+  }
+}
+
+async function glRpc(method, params){
+  const res = await fetch(GL_RPC, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({jsonrpc:'2.0', id:Date.now(), method, params}),
+    signal: AbortSignal.timeout(90000),
+  });
+  return await res.json();
+}
+
+function glEncode(fn, args){
+  // Simple JSON encoding for GenLayer contract calls
+  return JSON.stringify({method: fn, args});
+}
+
+function renderAIAnalysis(data){
+  const el = document.getElementById('aiBody');
+  if(!data){ el.innerHTML='<div class="empty">No analysis data returned. Try again.</div>'; return; }
+
+  // Handle both flat and nested analysis
+  const a = data.analysis ? (typeof data.analysis === 'string' ? JSON.parse(data.analysis) : data.analysis) : data;
+
+  const actColor = {
+    'Low':'var(--green)','Medium':'var(--orange)',
+    'High':'var(--red)','Very High':'var(--red)'
+  }[a.activity_level] || 'var(--blue)';
+
+  el.innerHTML = `
+    <div style="padding:20px">
+      <!-- Summary -->
+      <div style="background:var(--blue-bg);border:1px solid var(--blue-br);border-radius:10px;padding:16px 18px;margin-bottom:16px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--txt3);margin-bottom:6px">AI Summary</div>
+        <div style="font-size:13px;color:var(--txt);line-height:1.7">${a.summary || '—'}</div>
+      </div>
+
+      <!-- Stats grid -->
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px">
+        <div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:14px 16px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--txt3);margin-bottom:5px">Activity Level</div>
+          <div style="font-weight:800;font-size:18px;color:${actColor}">${a.activity_level || '—'}</div>
+        </div>
+        <div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:14px 16px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--txt3);margin-bottom:5px">Primary Activity</div>
+          <div style="font-weight:700;font-size:13px;color:var(--txt)">${a.primary_activity || '—'}</div>
+        </div>
+        <div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:14px 16px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--txt3);margin-bottom:5px">Wallet Age</div>
+          <div style="font-weight:700;font-size:13px;color:var(--txt)">${a.wallet_age || '—'}</div>
+        </div>
+        <div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:14px 16px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--txt3);margin-bottom:5px">Transactions</div>
+          <div style="font-weight:700;font-size:13px;color:var(--txt)">${a.transaction_count || '—'}</div>
+        </div>
+      </div>
+
+      <!-- Risk signals -->
+      <div style="background:${a.risk_signals && a.risk_signals.toLowerCase()!=='none detected'?'var(--red-bg)':'var(--green-bg)'};border:1px solid ${a.risk_signals && a.risk_signals.toLowerCase()!=='none detected'?'rgba(240,82,82,.25)':'rgba(52,199,123,.25)'};border-radius:9px;padding:14px 16px;margin-bottom:12px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--txt3);margin-bottom:5px">Risk Signals</div>
+        <div style="font-size:13px;font-weight:600;color:${a.risk_signals && a.risk_signals.toLowerCase()!=='none detected'?'var(--red)':'var(--green)'}">${a.risk_signals || 'None detected'}</div>
+      </div>
+
+      <!-- Notable facts -->
+      <div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:14px 16px;margin-bottom:16px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--txt3);margin-bottom:5px">Notable Facts</div>
+        <div style="font-size:13px;color:var(--txt2)">${a.notable_facts || 'None'}</div>
+      </div>
+
+      <!-- GenLayer badge -->
+      <div style="display:flex;align-items:center;gap:8px;justify-content:center;padding:10px;border-top:1px solid var(--bdr)">
+        <span style="font-size:16px">⬡</span>
+        <span style="font-size:11px;color:var(--txt3)">Analysis generated by your <strong style="color:#627eea">GenLayer Intelligent Contract</strong> · Contract: ${GL_CONTRACT.slice(0,10)}…</span>
+      </div>
+
+      <div style="text-align:center;margin-top:12px">
+        <button onclick="runGLAnalysis()" class="btn-rf">↻ Re-analyse</button>
+      </div>
+    </div>
+  `;
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────

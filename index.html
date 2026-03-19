@@ -720,7 +720,7 @@ async function runGLAnalysis(){
         jsonrpc: '2.0',
         id: Date.now(),
         method: 'gen_getContractState',
-        params: [GL_CONTRACT, 'latest']
+        params: [{ address: GL_CONTRACT }]
       }),
       signal: AbortSignal.timeout(30000),
     });
